@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <errno.h>
 
 #define MAXARGS 10
 #define MAXPRCS 100
@@ -17,12 +18,14 @@ pid_t pids[MAXPRCS];
 
 void alarm_handler(int signum){
     
-    kill(removed, SIGSTOP);
+    int error = kill(removed, SIGSTOP);
+    if (error ==-1){
+        strerror(errno);
+        exit(errno);
+    }
+
     pids[pid_index] = removed;
-    num_pids+=1;
-    
-   
-    
+    num_pids+=1;\
 }
 void cont_handler(int signum){
     
@@ -76,8 +79,18 @@ void main(int argc, char *argv[]){
                 int ret = pause();
                 if (ret == -1){
                     execv(prog,args);
+                    strerror(errno);
+                    exit(errno);
                 }
+            
             }
+            else if(childpid = -1){
+                strerror(errno);
+                for (int i = 0;i<pidcounter;i++){
+                    kill(pids[i],SIGKILL);
+                }
+                exit(errno);
+                    }
             pidcounter+=1;
 
         }
@@ -93,8 +106,17 @@ void main(int argc, char *argv[]){
             int ret = pause();
                 if (ret == -1){
                     execv(prog,args);
+                    strerror(errno);
+                    exit(errno);
                 }
             
+        }
+        else if(childpid = -1){
+            strerror(errno);
+            for (int i = 0;i<pidcounter;i++){
+                kill(pids[i],SIGKILL);
+            }
+            exit(errno);
         }
     
     sleep(1);
@@ -125,17 +147,22 @@ void main(int argc, char *argv[]){
         removed = pids[pid_index];
         pids[pid_index] = -1; 
         setitimer(ITIMER_REAL, &timer, NULL);
-        kill(removed,SIGCONT);
-        waitpid(removed, &status, WUNTRACED);
-        num_pids-=1;
-        pid_index = (pid_index+1)%(pidcounter+1);
+        int error = kill(removed,SIGCONT);
+        if (error ==-1){
+            strerror(errno);
+            exit(errno);
+            }
+        int checker = waitpid(removed, &status, WUNTRACED);
         setitimer(ITIMER_REAL,&cancel, NULL);
+        if (checker == -1){
+            strerror(errno);
+            exit(errno);
+        }
+        num_pids-=1;
+        pid_index = (pid_index+1)%(pidcounter+1);   
     }
     for (int i = 0; i<MAXARGS;i++){
         free(args[i]);
     }
-    
     return;
-    
-    
 }
